@@ -113,3 +113,116 @@ def best_and_premium():
         "best_deal": lowest_price_product,
         "premium_pick": highest_price_product
     }
+
+
+
+
+
+
+
+# Task 2 FastAPI 
+from pydantic import BaseModel
+
+# Q1 - Filter products by minimum price
+@app.get("/products/filter")
+def filter_products(min_price: int = None):
+    result = products
+
+    if min_price:
+        result = [p for p in result if p["price"] >= min_price]
+
+    return {"products": result}
+
+
+# Q2 - Get product price using product ID
+@app.get("/products/{product_id}/price")
+def get_product_price(product_id: int):
+    for p in products:
+        if p["id"] == product_id:
+            return {
+                "name": p["name"],
+                "price": p["price"]
+            }
+
+    return {"message": "Product not found"}
+
+
+# Q3 - Customer feedback model
+class CustomerFeedback(BaseModel):
+    customer_name: str
+    product_id: int
+    rating: int
+    comment: str
+
+
+@app.post("/feedback")
+def submit_feedback(feedback: CustomerFeedback):
+    return {
+        "message": "Feedback received successfully",
+        "data": feedback
+    }
+
+
+# Q4 - Product summary
+@app.get("/products/summary")
+def product_summary():
+
+    in_stock = [p for p in products if p["in_stock"]]
+    out_stock = [p for p in products if not p["in_stock"]]
+
+    most_expensive = max(products, key=lambda x: x["price"])
+    cheapest = min(products, key=lambda x: x["price"])
+
+    categories = list(set([p["category"] for p in products]))
+
+    return {
+        "total_products": len(products),
+        "in_stock_count": len(in_stock),
+        "out_of_stock_count": len(out_stock),
+        "most_expensive_product": most_expensive,
+        "cheapest_product": cheapest,
+        "categories": categories
+    }
+
+
+# Q5 - Bulk order models
+class OrderItem(BaseModel):
+    product_id: int
+    quantity: int
+
+
+class BulkOrder(BaseModel):
+    items: list[OrderItem]
+
+
+@app.post("/orders/bulk")
+def create_bulk_order(order: BulkOrder):
+
+    confirmed = []
+    failed = []
+    grand_total = 0
+
+    for item in order.items:
+        for p in products:
+
+            if p["id"] == item.product_id:
+
+                if p["in_stock"]:
+
+                    total = p["price"] * item.quantity
+                    grand_total += total
+
+                    confirmed.append({
+                        "product_name": p["name"],
+                        "quantity": item.quantity,
+                        "total_price": total
+                    })
+
+                else:
+                    failed.append(p["name"])
+
+    return {
+        "confirmed_orders": confirmed,
+        "failed_orders": failed,
+        "grand_total": grand_total
+    }
